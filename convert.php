@@ -12,26 +12,25 @@ if (isset($_FILES['whatsapp'])) {
     if (in_array($file_ext, $extensions) === false) {
         $errors[] = "extension not allowed";
     }
-    //2097152
-    if ($file_size > 1048576) {
-        $errors[] = 'File size must be smaller then 1 MB';
+
+    if ($file_size > 16 * 1048576) {
+        $errors[] = 'File size must be smaller than 16 MiB';
     }
 
     if (empty($errors) == true) {
         //        move_uploaded_file($file_tmp,"".$file_name);
         move_uploaded_file($file_tmp, "temp.txt");
-        // Define headers
-        header("Cache-Control: public");
-        header('Content-Type: application/octet-stream');
-        header("Content-Disposition: attachment; filename=\"" . "chat.html" . "\"");
 
-        // Read the file
-        //        readfile($file_name);
-
-        //        unlink($file_name);
+        if ($_POST["attachment"]) {
+            // Define headers
+            header("Cache-Control: public");
+            header('Content-Type: application/octet-stream');
+            header("Content-Disposition: attachment; filename=\"" . "chat.html" . "\"");
+        }
     } else {
         exit;
     }
+
     if (isset($_POST["fname"])) {
         $me = $_POST["fname"];
     }
@@ -145,13 +144,13 @@ if (isset($_FILES['whatsapp'])) {
         shuffle($namecolors);
         $colorindex = 0;
         $day = 0;
+
         if (!isset($me)) {
-            $me = "Michel";
+            $me = "";
         }
 
         function SearchInFile($searchfor)
         {
-
             $searchfor = 'name';
 
             // the following line prevents the browser from parsing this as HTML.
@@ -159,10 +158,13 @@ if (isset($_FILES['whatsapp'])) {
 
             // get the file contents, assuming the file to be readable (and exist)
             $contents = file_get_contents($file);
+
             // escape special characters in the query
             $pattern = preg_quote($searchfor, '/');
+
             // finalise the regular expression, matching the whole line
             $pattern = "/^.*$pattern.*\$/m";
+
             // search, and store all matching occurences in $matches
             if (preg_match_all($pattern, $contents, $matches)) {
                 echo "Found matches:\n";
@@ -184,38 +186,46 @@ if (isset($_FILES['whatsapp'])) {
                 //echo("<div class=\"all\">".$line."</div>");
                 //for ($x = 0; $x < strlen($line); $x++) {
                 //    echo(ord($line[$x]).".");
-                //} // 226.128.142 on start indcates something happens and after datetime picture (file); only after datetime you have done something
+                //}
+
                 $filename = "";
                 $location = "";
-                $indicator = chr(226) . chr(128) . chr(142);
-                $pos = strpos($line, $indicator);
-                if ($pos === 0) {
-                    $line = substr($line, 3);
-                    $filename = substr($line, strpos($line, "<bijgevoegd: ") + 13);
-                    $filename = "files\\" . substr($filename, 0, strpos($filename, '>'));
+                if (strpos($line, "<attached: ") > 0) {
+                    $filename = substr($line, strpos($line, "<attached: ") + 11);
+                    $filename = "media/" . substr($filename, 0, strpos($filename, '>'));
                 }
+
                 if (strpos($line, "https://maps.google.com/?q=") > 0) {
                     $location = substr($line, strpos($line, "https://maps.google.com/?q=") + 27);
                 }
-                $pattern = "/\[\d\d\-\d\d\-\d\d\d\d\ \d\d\:\d\d\:\d\d\]\ /";
+
+                // YYYY-mm-dd HH:ii:ss
+                $pattern = "/\[\d\d\d\d\-\d\d\-\d\d\, \d\d\:\d\d\:\d\d\]\ /";
+
                 if (preg_match($pattern, $line, $matches)) {
-                    //echo($matches[0]." ");
-                    $datecreated = date_create_from_format("[d-m-Y H:i:s] ", $matches[0]);
+                    $datecreated = date_create_from_format("[Y-m-d, H:i:s] ", $matches[0]);
                     if ($day != intval(date_format($datecreated, 'd'))) {
                         $day = intval(date_format($datecreated, 'd'));
                         echo ("<div class=\"day\">");
-                        echo (date_format($datecreated, 'd-m-Y')); //opm >half jaar; bij < half jaar ma 20 april
+                        echo (date_format($datecreated, 'Y-m-d')); //opm >half jaar; bij < half jaar ma 20 april
                         echo ("</div>");
                     }
+
+                    // Remove datetime from line
                     $line = preg_replace($pattern, "", $line);
+
+                    // TODO: make sysmessages work again
+                    $pos = 0;
+
                     if ($pos > 0 && $location == "") {
                         echo ("<div class=\"sysmessage\">");
                         $line = substr($line, strpos($line, $indicator) + 3);
                     } else {
                         $pattern = ": ";
                         $pos = strpos($line, $pattern);
+
                         if ($pos) {
-                            //                  echo(strpos(substr($line , 0 , $pos), $me)==0);
+                            //echo(strpos(substr($line , 0 , $pos), $me)==0);
                             if (substr($line, 0, $pos) == $me) {
                                 echo ("<div class=\"mymessage\">");
                                 $last = true;
@@ -223,6 +233,7 @@ if (isset($_FILES['whatsapp'])) {
                                 echo ("<div class=\"message\">");
                                 $last = false;
                                 $name = substr($line, 0, $pos);
+
                                 if (!array_key_exists($name, $names)) {
                                     $names["$name"] = $namecolors[$colorindex];
                                     $colorindex++;
@@ -252,15 +263,17 @@ if (isset($_FILES['whatsapp'])) {
                         }
                         $line = htmlspecialchars($line);
                         $reg_exUrl = "/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/";
+
                         if (preg_match($reg_exUrl, $line, $url)) {
                             $line = preg_replace($reg_exUrl, "<a href=" . $url[0] . ">" . $url[0] . "</a>", $line);
                         }
+
                         echo ($line);
                     } else {
                         echo ("<div class=\"text\">");
                         if (strripos(strtolower($filename), ".vcf")) {
                             echo ("<a href=\"" . $filename . "\">" . $filename . "</a><br>");
-                            echo ("visitekaartje");
+                            echo ("contact");
                         } else if (strripos(strtolower($filename), ".opus") || strripos(strtolower($filename), ".m4a")) {
                             echo ("<a href=\"" . $filename . "\">" . $filename . "</a><br>");
                             echo ("audio");
@@ -268,10 +281,11 @@ if (isset($_FILES['whatsapp'])) {
                             echo ("<a href=\"" . $filename . "\">");
                             echo ("<img class=\"image\" src=\"" . $filename . "\">");
                             echo ("</a><br>");
+
                             if (strripos(strtolower($filename), ".mp4")) {
                                 echo ("video");
                             } else {
-                                echo ("afbeelding");
+                                echo ("image");
                             }
                         }
                     }
