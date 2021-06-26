@@ -6,9 +6,9 @@
       $file_tmp =$_FILES['whatsapp']['tmp_name'];
       $file_type=$_FILES['whatsapp']['type'];
       $file_ext=strtolower(end(explode('.',$_FILES['whatsapp']['name'])));
-      
+
       $extensions= array("txt");
-      
+
       if(in_array($file_ext,$extensions)=== false){
          $errors[]="extension not allowed";
       }
@@ -16,7 +16,7 @@
       if($file_size > 1048576){
         $errors[]='File size must be smaller then 1 MB';
       }
-      
+
       if(empty($errors)==true){
 //        move_uploaded_file($file_tmp,"".$file_name);
         move_uploaded_file($file_tmp,"temp.txt");
@@ -86,7 +86,7 @@ body {
 
 .mymessage {
 /*    background-color: #dcf8c6; #DCF8C7*/
-    background-color: #DCF8C7; 
+    background-color: #DCF8C7;
     border-radius: 10px;
     width: 300px;
     padding: 10px;
@@ -128,7 +128,7 @@ body {
     max-width:100%;
     height: auto;
     border-radius: 10px;
-}    
+}
 </style>
 
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -240,7 +240,7 @@ if ($handle) {
                     $lonLB = $lon - 0.002;
                     $latRT = $lat + 0.001;
                     $lonRT = $lon + 0.002;
-                    echo("<iframe width=\"300\" height=\"350\" frameborder=\"0\" scrolling=\"no\" marginheight=\"0\" marginwidth=\"0\" 
+                    echo("<iframe width=\"300\" height=\"350\" frameborder=\"0\" scrolling=\"no\" marginheight=\"0\" marginwidth=\"0\"
                             src=\"https://www.openstreetmap.org/export/embed.html?bbox=".$lonLB."%2C".$latLB."%2C".$lonRT."%2C".$latRT."&amp;layer=mapnik&amp;marker=".$lat."%2C".$lon."\"style=\"border: 0px solid black\"></iframe>");
                 }
                 $line = htmlspecialchars($line);
@@ -289,7 +289,7 @@ if ($handle) {
     fclose($handle);
 } else {
     // error opening the file.
-} 
+}
 
 unlink("temp.txt");
 ?>
