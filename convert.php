@@ -1,4 +1,7 @@
 <?php
+
+require('config.inc.php');
+
 if (isset($_FILES['whatsapp'])) {
     $errors = array();
     $file_name = $_FILES['whatsapp']['name'];
@@ -18,14 +21,15 @@ if (isset($_FILES['whatsapp'])) {
     }
 
     if (empty($errors) == true) {
-        //        move_uploaded_file($file_tmp,"".$file_name);
         move_uploaded_file($file_tmp, "temp.txt");
+
+        $target_file_name = str_replace('.txt', '.html', $file_name);
 
         if ($_POST["attachment"]) {
             // Define headers
             header("Cache-Control: public");
             header('Content-Type: application/octet-stream');
-            header("Content-Disposition: attachment; filename=\"" . "chat.html" . "\"");
+            header("Content-Disposition: attachment; filename=\"" . $target_file_name . "\"");
         }
     } else {
         exit;
@@ -154,41 +158,41 @@ if (isset($_FILES['whatsapp'])) {
             while (($line = fgets($handle)) !== false) {
                 $filename = "";
                 $location = "";
-                if (strpos($line, "<attached: ") > 0) {
-                    $filename = substr($line, strpos($line, "<attached: ") + 11);
-                    $filename = "media/" . substr($filename, 0, strpos($filename, '>'));
+
+                // Detect attachment
+                if (preg_match($ATTACHMENT_PATTERN, $line, $matches)) {
+                    $filename = $matches[1];
                 }
 
                 if (strpos($line, "https://maps.google.com/?q=") > 0) {
                     $location = substr($line, strpos($line, "https://maps.google.com/?q=") + 27);
                 }
 
-                // YYYY-mm-dd HH:ii:ss
-                $pattern = "/\[\d\d\d\d\-\d\d\-\d\d\, \d\d\:\d\d\:\d\d\]\ /";
+                if (preg_match($DATE_TIME_PATTERN, $line, $matches)) {
+                    $datecreated = date_create_from_format($DATE_TIME_FORMAT, $matches[0]);
 
-                if (preg_match($pattern, $line, $matches)) {
-                    $datecreated = date_create_from_format("[Y-m-d, H:i:s] ", $matches[0]);
+                    // If the date for the current message differs from the
+                    // previous one, print out a day indicator.
                     if ($day != intval(date_format($datecreated, 'd'))) {
                         $day = intval(date_format($datecreated, 'd'));
                         echo ("<div class=\"day\">");
-                        echo (date_format($datecreated, 'Y-m-d')); //opm >half jaar; bij < half jaar ma 20 april
+                        echo (date_format($datecreated, $DATE_FORMAT));
                         echo ("</div>");
                     }
 
                     // Remove datetime from line
-                    $line = preg_replace($pattern, "", $line);
+                    $line = preg_replace($DATE_TIME_PATTERN, "", $line);
 
-                    // TODO: make sysmessages work again
-                    $pos = 0;
+                    $pos = strpos($line, $SYS_MESSAGE_SUBSTRING);
 
-                    if ($pos > 0 && $location == "") {
+                    if ($pos !== false && $location == "") {
                         echo ("<div class=\"sysmessage\">");
-                        $line = substr($line, strpos($line, $indicator) + 3);
+                        $line = substr($line, strpos($line, $indicator));
                     } else {
                         $pattern = ": ";
                         $pos = strpos($line, $pattern);
 
-                        if ($pos) {
+                        if ($pos !== false) {
                             //echo(strpos(substr($line , 0 , $pos), $me)==0);
                             if (substr($line, 0, $pos) == $me) {
                                 echo ("<div class=\"mymessage\">");
@@ -212,19 +216,24 @@ if (isset($_FILES['whatsapp'])) {
                             $line = substr($line, $pos + 2);
                         }
                     }
+
                     if ($filename == "") {
                         echo ("<div class=\"text\">");
                         if ($location != "") {
                             //lat,lon
                             $lat = floatval(substr($location, 0, strpos($location, ",")));
                             $lon = floatval(substr($location, strpos($location, ",") + 1));
+
                             $latLB = $lat - 0.001;
                             $lonLB = $lon - 0.002;
+
                             $latRT = $lat + 0.001;
                             $lonRT = $lon + 0.002;
+
                             echo ("<iframe width=\"300\" height=\"350\" frameborder=\"0\" scrolling=\"no\" marginheight=\"0\" marginwidth=\"0\"
                             src=\"https://www.openstreetmap.org/export/embed.html?bbox=" . $lonLB . "%2C" . $latLB . "%2C" . $lonRT . "%2C" . $latRT . "&amp;layer=mapnik&amp;marker=" . $lat . "%2C" . $lon . "\"style=\"border: 0px solid black\"></iframe>");
                         }
+
                         $line = htmlspecialchars($line);
                         $reg_exUrl = "/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/";
 
@@ -245,12 +254,6 @@ if (isset($_FILES['whatsapp'])) {
                             echo ("<a href=\"" . $filename . "\">");
                             echo ("<img class=\"image\" src=\"" . $filename . "\">");
                             echo ("</a><br>");
-
-                            if (strripos(strtolower($filename), ".mp4")) {
-                                echo ("video");
-                            } else {
-                                echo ("image");
-                            }
                         }
                     }
                     echo ("</div>"); //text
@@ -258,6 +261,8 @@ if (isset($_FILES['whatsapp'])) {
                     echo (date_format($datecreated, 'H:i'));
                     echo ("</div>"); //time
                     echo ("</div>"); //message
+                } elseif ($line == "\n") {
+                    // Empty line. We ignore these in the output to keep it better looking.
                 } else {
                     //echo('no matches');
                     if ($last) {

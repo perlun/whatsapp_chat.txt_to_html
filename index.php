@@ -1,3 +1,4 @@
+<?php require('config.inc.php'); ?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -22,7 +23,7 @@
         <br><br>
         <div>
             <label>Your name (used to determine messages written by you in WhatsApp conversations):</label>
-            <input type="text" id="fname" name="fname" size=50>
+            <input type="text" id="fname" name="fname" value="<?= $DEFAULT_NAME ?>" size=50>
         </div>
         <div>
             <label>Select this to save HTML as .html file (instead of inline displaying in browser):</label>
